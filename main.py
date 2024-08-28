@@ -33,6 +33,8 @@ class TextStyle:
 
 DEBUG = False
 
+# TODO: Add better ways to store master passwords, and secret question
+
 MAX_LOGIN_ATTEMPTS = 3
 MASTER_PASSWORD = ""
 ANSWER = "bangalore"
@@ -42,8 +44,6 @@ STATIC_KEY = b'EknXESmIx0RwnaOKGzX9Fb8kZgohsGJKqzNxdcX8dSw='
 curr_path = os.path.dirname(os.path.abspath(__file__))
 databse_path = os.path.join(curr_path, "data.db")
 main_table_name = "my_data"
-
-email = "hb2776@columbia.edu"
 
 # >>>> >>>> >>>> >>>> >>>> >>>> >>>> >>>> >>>> >>>> >>>> >>>> >>>> >>>> >>>> >>>> >>>> 
 
