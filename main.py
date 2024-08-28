@@ -33,7 +33,8 @@ class TextStyle:
 
 DEBUG = False
 
-# TODO: Add better ways to store master passwords, and secret question
+# TODO: Add better ways to store master passwords
+# TODO: Add function to handle question-answer "handling"
 
 MAX_LOGIN_ATTEMPTS = 3
 MASTER_PASSWORD = ""
@@ -44,8 +45,21 @@ STATIC_KEY = b'EknXESmIx0RwnaOKGzX9Fb8kZgohsGJKqzNxdcX8dSw='
 curr_path = os.path.dirname(os.path.abspath(__file__))
 databse_path = os.path.join(curr_path, "data.db")
 main_table_name = "my_data"
+main_psswd_table_name = "main_password"
+answer_table_name = "question_answers"
+
+questions = [
+    "Where were you born?",
+    "In which year were you born?",
+    "Where do you stay?",
+    "What brand was your first car?",
+    "Which college did you attend?",
+
+]
 
 # >>>> >>>> >>>> >>>> >>>> >>>> >>>> >>>> >>>> >>>> >>>> >>>> >>>> >>>> >>>> >>>> >>>> 
+
+''' UTILITY functions '''
 
 def copy_to_clipboard(data):
     pyperclip.copy(data)
@@ -74,16 +88,48 @@ def timeout_input(prompt, timeout=20):
 
 # >>>> >>>> >>>> >>>> >>>> >>>> >>>> >>>> >>>> >>>> >>>> >>>> >>>> >>>> >>>> >>>> >>>> 
 
+''' DATABASE functions '''
+
 def delete_table():
+    # delete all tables 
     conn = sqlite3.connect(databse_path)
     cursor = conn.cursor()
 
+
+    # delete older passwords table
     query = '''
         DROP TABLE IF EXISTS {}
     '''.format(main_table_name)
     if DEBUG: print(query)
     cursor.execute(query)
     
+    
+    # delete older question answer table
+    query = '''
+        DROP TABLE IF EXISTS {}
+    '''.format(answer_table_name)
+    if DEBUG: print(query)
+    cursor.execute(query)
+    
+    
+    # delete older master-password table
+    query = '''
+        DROP TABLE IF EXISTS {}
+    '''.format(main_psswd_table_name)
+    if DEBUG: print(query)
+    cursor.execute(query)
+    
+
+    conn.commit()
+    conn.close()
+
+
+def initialize_database():
+    conn = sqlite3.connect(databse_path)
+    cursor = conn.cursor()
+
+    
+    # create new table to store passwords
     query = '''
         CREATE TABLE IF NOT EXISTS {} (
             CODE TEXT PRIMARY KEY,
@@ -95,7 +141,29 @@ def delete_table():
     '''.format(main_table_name)
     if DEBUG: print(query)
     cursor.execute(query)
+
     
+    # create new table to store passwords
+    query = '''
+        CREATE TABLE IF NOT EXISTS {} (
+            QUESTION TEXT NOT NULL,
+            ANSWER TEXT NOT NULL
+        )
+    '''.format(answer_table_name)
+    if DEBUG: print(query)
+    cursor.execute(query)
+
+    
+    # create new table to store passwords
+    query = '''
+        CREATE TABLE IF NOT EXISTS {} (
+            PASSWORD TEXT NOT NULL,
+        )
+    '''.format(main_psswd_table_name)
+    if DEBUG: print(query)
+    cursor.execute(query)
+    
+
     conn.commit()
     conn.close()
 
@@ -109,6 +177,45 @@ def add_data(params):
         VALUES 
             ("{}", "{}", "{}", "{}", "{}")
     '''.format(main_table_name, params[0], params[1], params[2], params[3], params[4])
+    if DEBUG: print(query)
+    cursor.execute(query)
+    conn.commit()
+    conn.close()
+
+
+def add_question_answers():
+    answers = []
+    for question in questions:
+        answer = input(f"{question}\nYour answer - ")
+        answers.append(answer)
+
+    question_answers = list(zip(questions, answers))
+
+    conn = sqlite3.connect(databse_path)
+    cursor = conn.cursor()
+    query = '''
+        INSERT INTO {} 
+            (QUESTION, ANSWER)
+        VALUES 
+            (?, ?)
+    '''.format(answer_table_name)
+    if DEBUG: print(query)
+    cursor.executemany(query, question_answers)
+    conn.commit()
+    conn.close()
+
+
+def add_master_password():
+    master_password = input("What do you want to set as your master password?\nYour answer - ")
+
+    conn = sqlite3.connect(databse_path)
+    cursor = conn.cursor()
+    query = '''
+        INSERT INTO {} 
+            (PASSWORD)
+        VALUES 
+            ("{}")
+    '''.format(main_psswd_table_name, master_password)
     if DEBUG: print(query)
     cursor.execute(query)
     conn.commit()
@@ -188,6 +295,8 @@ def generate_code():
 
 # >>>> >>>> >>>> >>>> >>>> >>>> >>>> >>>> >>>> >>>> >>>> >>>> >>>> >>>> >>>> >>>> >>>> 
 
+''' ENCRYPTION functions '''
+
 def encrypt(password):
     cipher_suite = Fernet(STATIC_KEY)
     ciphertext = cipher_suite.encrypt(password.encode())
@@ -208,9 +317,16 @@ if __name__ == "__main__":
     print(f"{TextColor.YELLOW}Welcome to password manager.{TextColor.RESET}")
     print("System is now performing a setup...")
 
-    if len(sys.argv) == 2 and sys.argv[1] == "change":
-        print("Will delete the older table now") 
-        delete_table()
+    if len(sys.argv) == 2 or not os.path.exists(databse_path): 
+        
+        if len(sys.argv) == 2 and sys.argv[1] == "change":
+            print("Will delete the older table now") 
+            delete_table()
+
+        initialize_database()
+        print("Now need to setup basic identification") 
+        add_question_answers()
+        add_master_password()
 
     print("setup completed!")
  
