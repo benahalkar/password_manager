@@ -222,6 +222,33 @@ def add_master_password():
     conn.close()
 
 
+def handle_question_answering():
+
+    conn = sqlite3.connect(databse_path)
+    cursor = conn.cursor()
+    query = '''
+        SELECT 
+            * 
+        FROM 
+            {} 
+        ORDER BY
+            RANDOM()
+        LIMIT
+            1
+        ;
+    '''.format(answer_table_name)
+    if DEBUG: print(query)
+    cursor.execute(query)
+    question, ANSWER = cursor.fetchone()
+    conn.commit()
+    conn.close()
+
+    answer = input(f"{question} Your answer - ")
+    if answer != ANSWER:
+        exit("Wrong Answer!")
+    else:
+        return
+
 def get_data(code):
     conn = sqlite3.connect(databse_path)
     cursor = conn.cursor()
@@ -342,9 +369,8 @@ if __name__ == "__main__":
     if i == MAX_LOGIN_ATTEMPTS - 1:
         exit("Max Attempts crossed!")
     elif i != 0:
-        answer = input("Where were you born? Your answer - ")
-        if answer != ANSWER:
-            exit("Wrong Answer!")
+        handle_question_answering()
+        
 
     print("")    
     print(f"{TextColor.GREEN}Correct data entered! Letting you in{TextColor.RESET}")
