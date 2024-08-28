@@ -33,12 +33,8 @@ class TextStyle:
 
 DEBUG = False
 
-# TODO: Add better ways to store master passwords
-# TODO: Add function to handle question-answer "handling"
 
 MAX_LOGIN_ATTEMPTS = 3
-MASTER_PASSWORD = ""
-ANSWER = "bangalore"
 STATIC_KEY = b'EknXESmIx0RwnaOKGzX9Fb8kZgohsGJKqzNxdcX8dSw='
 
 
@@ -54,7 +50,6 @@ questions = [
     "Where do you stay?",
     "What brand was your first car?",
     "Which college did you attend?",
-
 ]
 
 # >>>> >>>> >>>> >>>> >>>> >>>> >>>> >>>> >>>> >>>> >>>> >>>> >>>> >>>> >>>> >>>> >>>> 
@@ -248,6 +243,29 @@ def handle_question_answering():
         exit("Wrong Answer!")
     else:
         return
+    
+
+def get_master_password():
+    conn = sqlite3.connect(databse_path)
+    cursor = conn.cursor()
+    query = '''
+        SELECT 
+            * 
+        FROM 
+            {} 
+        ORDER BY
+            RANDOM()
+        LIMIT
+            1
+        ;
+    '''.format(main_psswd_table_name)
+    if DEBUG: print(query)
+    cursor.execute(query)
+    master_password = cursor.fetchone()[0]
+    conn.commit()
+    conn.close()
+    return master_password
+
 
 def get_data(code):
     conn = sqlite3.connect(databse_path)
@@ -361,7 +379,7 @@ if __name__ == "__main__":
     for i in range(MAX_LOGIN_ATTEMPTS):
         main_password = timeout_input("May I have your master password please?: ", 60)
 
-        if main_password == MASTER_PASSWORD:
+        if main_password == get_master_password():
             break
         else:
             print("Incorrect details entered!")
@@ -418,7 +436,7 @@ if __name__ == "__main__":
 
         main_password = timeout_input("May I have your master password please?: ", 30)
 
-        if main_password != MASTER_PASSWORD:
+        if main_password != get_master_password():
             exit("Wrong password entered")
     
         data = get_data(code)
