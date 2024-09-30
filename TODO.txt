@@ -1,0 +1,9 @@
+29th SEP 2024 - Add username to database
+
+29th SEP 2024 - Make showing all entries more userfriendly
+
+29th SEP 2024 - Add modifier utility
+
+Make master password hidden when typed
+
+Add handling for special characters such as \\ ' " etc

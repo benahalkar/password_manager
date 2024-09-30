@@ -1,15 +1,11 @@
 from cryptography.fernet import Fernet
 from inputimeout import inputimeout 
-from prettytable import PrettyTable
 import pyperclip
 import stdiomask
 import sqlite3
-import getpass
 import base64
-import signal
 import random
 import string
-import time
 import sys
 import os
 
@@ -130,7 +126,8 @@ def initialize_database():
             CODE TEXT PRIMARY KEY,
             NAME TEXT NOT NULL,
             URL TEXT NOT NULL,
-            DATA TEXT NOT NULL,
+            USERNAME TEXT NOT NULL, 
+            PASSWORD TEXT NOT NULL,
             TYPE TEXT
         )
     '''.format(main_table_name)
@@ -152,7 +149,7 @@ def initialize_database():
     # create new table to store passwords
     query = '''
         CREATE TABLE IF NOT EXISTS {} (
-            PASSWORD TEXT NOT NULL,
+            PASSWORD TEXT NOT NULL
         )
     '''.format(main_psswd_table_name)
     if DEBUG: print(query)
@@ -168,15 +165,41 @@ def add_data(params):
     cursor = conn.cursor()
     query = '''
         INSERT INTO {} 
-            (CODE, NAME, URL, DATA, TYPE)
+            (CODE, NAME, URL, USERNAME, PASSWORD, TYPE)
         VALUES 
-            ("{}", "{}", "{}", "{}", "{}")
-    '''.format(main_table_name, params[0], params[1], params[2], params[3], params[4])
+            ("{}", "{}", "{}", "{}", "{}", "{}")
+    '''.format(main_table_name, params[0], params[1], params[2], params[3], params[4], params[5])
     if DEBUG: print(query)
     cursor.execute(query)
     conn.commit()
     conn.close()
 
+
+def update_data(params, code):
+    try:
+        if len(params.items()) == 0:
+            return None
+        
+        for key, value in params.items():
+            conn = sqlite3.connect(databse_path)
+            cursor = conn.cursor()
+            query = '''
+                UPDATE 
+                    {} 
+                SET 
+                    {} = "{}"
+                WHERE
+                    CODE = "{}"; 
+            '''.format(main_table_name, key, value, code)
+            if DEBUG: print(query)
+            cursor.execute(query)
+            conn.commit()
+            conn.close()
+
+        return None
+
+    except Exception as e:
+        return e
 
 def add_question_answers():
     answers = []
@@ -272,7 +295,7 @@ def get_data(code):
     cursor = conn.cursor()
     query = '''
         SELECT 
-            DATA
+            USERNAME, PASSWORD
         FROM 
             {}
         WHERE 
@@ -282,8 +305,8 @@ def get_data(code):
     cursor.execute(query)
     result = cursor.fetchone()
     conn.close()
-
-    return result[0]
+    
+    return (result[0], result[1])
 
 
 def get_names():
@@ -299,29 +322,18 @@ def get_names():
     cursor.execute(query)
     
     all_names = cursor.fetchall()
-
-    print("="*80)
-    print("SHOWING ALL DATA ({} to be shown)".format(len(all_names)))
-
-    i = 0
     columns = [description[0] for description in cursor.description]
-    table = PrettyTable(columns)
-    for row in all_names:
-        table.add_row(row)
-        i = i + 1
 
-    print(table)
-    print("="*80)
-    print("showed {}".format(i))
-    
     conn.commit()
     conn.close()
+
+    return columns, all_names
 
 
 def check_name_exists(value):
     conn = sqlite3.connect(databse_path)
     cursor = conn.cursor()
-    query = '''SELECT 1 FROM {} WHERE CODE = "{}" LIMIT 1'''.format(main_table_name, value)
+    query = '''SELECT 1 FROM {} WHERE CODE = "{}" LIMIT 1'''.format(main_table_name, value.strip())
     if DEBUG: print(query)
     cursor.execute(query)
     result = cursor.fetchone()
@@ -358,6 +370,8 @@ def decrypt(password):
 
 if __name__ == "__main__":
     os.system("cls")
+    print(databse_path)
+
     
     print(f"{TextColor.YELLOW}Welcome to password manager.{TextColor.RESET}")
     print("System is now performing a setup...")
@@ -416,15 +430,16 @@ if __name__ == "__main__":
         name               = input("Enter the name to be saved!      - ")
         url                = input("Enter the url to be saved!       - ")
         type_              = input("Enter the data type to be saved! - ")
-        data_1 = stdiomask.getpass("Enter the password to be saved!  - ")
-        data_2 = stdiomask.getpass("Enter the password again!        - ")
+        username           = input("Enter the username to be saved!  - ")
+        pass_1 = stdiomask.getpass("Enter the password to be saved!  - ")
+        pass_2 = stdiomask.getpass("Enter the password again!        - ")
         
-        if data_1 != data_2:
+        if pass_1 != pass_2:
             exit("The data entered does not match")
         else:
             code = generate_code()
-            data = encrypt(data_1)
-            params = (code, name, url, data, type_)
+            password = encrypt(pass_1)
+            params = (code, name, url, username, password, type_)
             add_data(params)
             print(f"{TextColor.GREEN}Data has been saved successfully{TextColor.RESET}")
     
@@ -439,7 +454,7 @@ if __name__ == "__main__":
         if main_password != get_master_password():
             exit("Wrong password entered")
     
-        data = get_data(code)
+        username, data = get_data(code)
         password = decrypt(data)
 
         option = input('''Password has been retrieved... how would you like to access it?
@@ -456,20 +471,75 @@ if __name__ == "__main__":
             copy_to_clipboard(password)
 
         elif option == "s":
-            print("Your password is [ {}{}{} ]... {}exiting now!{}".format(TextColor.CYAN, password, TextColor.RESET, TextColor.GREEN, TextColor.RESET))
+            print("Your username is [ {}{}{} ] and password is [ {}{}{} ]... {}exiting now!{}".format(TextColor.CYAN, username, TextColor.RESET, TextColor.CYAN, password, TextColor.RESET, TextColor.GREEN, TextColor.RESET))
 
         else:
             exit("Invalid option given!")
 
 
     elif option == 3:
-        # TODO: Complete this
-        pass
+        code = input("Enter the code to be modified! - ")
+
+        if not check_name_exists(code):
+            exit("Code entered does not exist!")
+
+        name               = input("Enter new name, press ENTER to ignore        - ")
+        url                = input("Enter new url, press ENTER to ignore         - ")
+        type_              = input("Enter new data type, press ENTER to ignore   - ")
+        username           = input("Enter new username, press ENTER to ignore    - ")
+        pass_1 = stdiomask.getpass("Enter new password, press ENTER to ignore    - ")
+        pass_2 = stdiomask.getpass("Re-enter new password, press ENTER to ignore - ")
+
+        if pass_1 != pass_2 and ( pass_1 != "\n" or pass_2 != "\n"):
+            exit("The data entered does not match")
+
+        name = name.strip()
+        url = url.strip()
+        type_ = type_.strip()
+        username = username.strip() 
+        pass_1 = pass_1.strip()
+
+        items_to_change = {}
+        
+        if name != "":
+            items_to_change["NAME"] = name
+
+        if url != "":
+            items_to_change["URL"] = url
+
+        if type_ != "":
+            items_to_change["TYPE"] = type_
+
+        if username != "":
+            items_to_change["USERNAME"] = username
+
+        if pass_1 != "":
+            password = encrypt(pass_1)
+            items_to_change["PASSWORD"] = password
+
+        status = update_data(items_to_change, code)
+
+        if status is None:
+            print(f"{TextColor.GREEN}Data has been updated successfully{TextColor.RESET}")
+        else:
+            exit("Error - {}".format(status))
+    
+
 
     elif option == 4:
-        get_names()
+
+        columns, all_names = get_names()
+
+        print("\nSHOWING ALL DATA ({}{}{} to be shown)\n".format(TextColor.CYAN, len(all_names), TextColor.RESET))
+
+        print("  CODE | NAME ")
+
+        i = 0
+        for name in all_names:
+            print(f" {TextColor.YELLOW}{name[0]}{TextColor.RESET} | {TextColor.PURPLE}{name[1]}{TextColor.RESET}")
+            i += 1
+
+        print("\nshowed {}{}{}\n".format(TextColor.CYAN, i, TextColor.RESET))
     
     else:
         exit("Invalid option entered!")
-
-# print(decrypt(encrypt("Hallo")))
